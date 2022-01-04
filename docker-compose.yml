@@ -1,0 +1,57 @@
+version: '3'
+
+services: 
+
+  db:
+    image: mysql
+    container_name: db
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    expose:
+      - "3306"
+    ports:
+      - "4012:3306"
+    volumes: 
+      - ./mysql:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: nodedb
+    networks: 
+      - mynet
+
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args: 
+        - --no-cache
+    container_name: app
+    entrypoint: dockerize -wait tcp://db:3306 -timeout 20s docker-entrypoint.sh
+    command: node src/index.js
+    stdin_open: true
+    tty: true
+    expose:
+      - "3000"
+    depends_on:
+      - db
+    networks: 
+      - mynet
+
+  nginx:
+    image: nginx
+    container_name: nginx
+    volumes:
+      - ./templates:/etc/nginx/templates
+    ports:
+      - "3000:80"
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+    depends_on:
+      - app
+    networks: 
+      - mynet
+
+networks: 
+  mynet:
+    driver: bridge      
